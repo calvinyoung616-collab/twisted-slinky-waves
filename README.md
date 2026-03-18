@@ -1,6 +1,6 @@
 # Twisted Slinky Waves
 
-![slinky](slinky.jpg)
+![slinky](figures/slinky.jpg)
 
 This repository contains research and teaching materials for studying the wave dynamics of a twisted slinky. The project investigates the coupled motion that arises when a slinky is twisted and released while its bottom end is fixed.
 
@@ -56,7 +56,7 @@ README.md
 
 # Experimental setup
 
-![experiment setup](setup.png)
+![experiment setup](figures/setup.png)
 
 The experiment uses a plastic slinky whose bottom end is fixed to a horizontal surface. The top of the slinky is twisted several turns and then released.
 

@@ -10,7 +10,7 @@ clear; clc; close all;
 %  Main steps:
 %  1) Compute angular wave u(theta,t)
 %  2) Compute effective transverse field v(theta,t)
-%  3) Compute effective force distributions F and Q
+%  3) Compute effective shear-force distribution
 %  4) Compute complex displacement of the top coil
 %  5) Estimate the dominant period using FFT
 %
@@ -33,7 +33,7 @@ clear; clc; close all;
 %% ============================================================
 
 %% ---------------- USER-EDITABLE PARAMETERS -------------------
-% Spring No.2 (current manuscript version)
+% Spring No.2
 r1 = 3.404e-2;      % m
 r2 = 3.825e-2;      % m
 h  = 2.33e-3;       % m
@@ -46,8 +46,9 @@ theta0 = 66*pi;     % rad
 u0 = 14*pi;         % rad
 
 % Model / numerical parameters
-gamma = 0.5;        % damping coefficient in top-coil motion
-v0 = 1.2e-5;        % initial amplitude in v(theta,0)=v0*sin(theta)
+gamma_damp = 0.5;   % damping coefficient in top-coil motion
+kappa = 1.0;        % shear correction factor
+v0 = 1.2e-5;             % initial amplitude in v(theta,0)=v0*sin(theta)
 
 N_theta = 200;      % number of spatial grid points
 N_t = 400;          % initial number of time steps
@@ -66,7 +67,7 @@ A_cs = h * b;               % effective cross-sectional area (m^2)
 omega_v = (r2 - r1) / (r2 + r1) * sqrt(2 * E / (3 * rho * (r1^2 + r2^2)));
 
 % Coefficient in v_tt - c^2 v_thetatheta = source
-c_sq = G / (rho * R^2);
+c_sq = kappa * G / (rho * R^2);
 
 % Angular-wave period
 T = 4 * theta0 / omega_v;
@@ -103,8 +104,8 @@ v_t = zeros(N_theta, N_t);
 %% Initial condition for v(theta,t)
 for i = 1:N_theta
     v(i,1) = v0 * sin(theta(i));
-    v(i,2) = v(i,1);    % implements v_t(theta,0)=0
 end
+v(:,2) = v(:,1);    % implements v_t(theta,0)=0 approximately
 
 %% 1) Compute u(theta,t) and u_t(theta,t)
 fprintf('Computing angular wave field u(theta,t)...\n');
@@ -156,7 +157,8 @@ for j = 2:N_t-1
                    (c_sq * v_thetatheta + u_t_sq_r_prime(i,j));
     end
 
-    % Boundary conditions
+    % Boundary conditions:
+    % v(0,t)=0, v_theta(theta0,t)=0
     v(1, j+1) = 0;
     v(N_theta, j+1) = v(N_theta-1, j+1);
 
@@ -165,32 +167,29 @@ for j = 2:N_t-1
     end
 end
 
+%% Compute v_t
+for j = 2:N_t-1
+    v_t(:,j) = (v(:,j+1) - v(:,j-1)) / (2*dt);
+end
+v_t(:,1)   = (v(:,2) - v(:,1)) / dt;
 v_t(:,N_t) = (v(:,N_t) - v(:,N_t-1)) / dt;
 
-%% Spatial derivatives
+%% Spatial derivative dv/dtheta
 dv_dtheta = zeros(N_theta, N_t);
-du_dtheta = zeros(N_theta, N_t);
 
 for j = 1:N_t
     for i = 2:N_theta-1
         dv_dtheta(i,j) = (v(i+1,j) - v(i-1,j)) / (2*dtheta);
-        du_dtheta(i,j) = (u(i+1,j) - u(i-1,j)) / (2*dtheta);
     end
 
     dv_dtheta(1,j) = (v(2,j) - v(1,j)) / dtheta;
     dv_dtheta(N_theta,j) = (v(N_theta,j) - v(N_theta-1,j)) / dtheta;
-
-    du_dtheta(1,j) = (u(2,j) - u(1,j)) / dtheta;
-    du_dtheta(N_theta,j) = (u(N_theta,j) - u(N_theta-1,j)) / dtheta;
 end
 
-%% 3) Compute effective force distributions Q and F
-% In the helical geometry, the effective transverse driving term is found to scale with v_theta * u_theta.
-% This gives much better agreement with experiment in the helical geometry.
-fprintf('Computing effective force fields Q(theta,t) and F(theta,t)...\n');
+%% 3) Compute effective shear-force distribution
+fprintf('Computing effective shear-force field Q(theta,t)...\n');
 
-Q = G * h * b / R * dv_dtheta;
-F = (E * h * b / R) .* dv_dtheta .* du_dtheta;
+Q = kappa * G * h * b / R * dv_dtheta;
 
 %% 4) Compute complex displacement of the top coil
 fprintf('Computing complex displacement of the top coil...\n');
@@ -201,7 +200,7 @@ theta_end_top   = theta0;
 [~, start_idx_top] = min(abs(theta - theta_start_top));
 [~, end_idx_top]   = min(abs(theta - theta_end_top));
 
-mass_coeff = rho * A_cs * 2*pi*R;
+mass_top = rho * A_cs * 2*pi*R;
 
 z_tilde_top    = zeros(1, N_t);
 z_tilde_t_top  = zeros(1, N_t);
@@ -213,24 +212,23 @@ for j = 2:N_t-1
 
     term1 = Q(start_idx_top, j) * exp(1i * theta_prime_start);
     term2 = Q(end_idx_top,   j) * exp(1i * theta_prime_end);
-    term3 = 1i * F(start_idx_top, j) * exp(1i * theta_prime_start);
-    term4 = 1i * F(end_idx_top,   j) * exp(1i * theta_prime_end);
 
-    total_rhs = (term1 - term2) + (term3 - term4);
+    total_rhs = term1 - term2;
 
-    z_tilde_tt_top(j) = (total_rhs - gamma * z_tilde_t_top(j-1)) / mass_coeff;
+    % Equation: m z¨ + gamma_damp z˙ = total_rhs
+    z_tilde_tt_top(j) = (total_rhs - gamma_damp * z_tilde_t_top(j-1)) / mass_top;
 
-    if j == 2
-        z_tilde_t_top(j) = z_tilde_tt_top(j) * dt;
-        z_tilde_top(j)   = 0.5 * z_tilde_tt_top(j) * dt^2;
-    else
-        z_tilde_t_top(j) = gamma * z_tilde_t_top(j-1) + z_tilde_tt_top(j) * dt;
-        z_tilde_top(j)   = z_tilde_top(j-1) + z_tilde_t_top(j) * dt;
-    end
+    % Explicit Euler update
+    z_tilde_t_top(j) = z_tilde_t_top(j-1) + z_tilde_tt_top(j) * dt;
+    z_tilde_top(j)   = z_tilde_top(j-1) + z_tilde_t_top(j) * dt;
 end
 
+% fill last point
+z_tilde_tt_top(N_t) = z_tilde_tt_top(N_t-1);
+z_tilde_t_top(N_t)  = z_tilde_t_top(N_t-1);
+z_tilde_top(N_t)    = z_tilde_top(N_t-1);
+
 %% 5) FFT analysis
-% Use the real part of top-coil velocity to estimate the dominant frequency.
 fprintf('Performing FFT analysis...\n');
 
 v_x = real(z_tilde_t_top);
@@ -246,9 +244,21 @@ P1(2:end-1) = 2 * P1(2:end-1);
 
 f = Fs * (0:floor(N_fft/2)) / N_fft;
 
-[~, dominant_idx] = max(P1);
+% ignore zero-frequency component
+if length(P1) >= 2
+    [~, idx_local] = max(P1(2:end));
+    dominant_idx = idx_local + 1;
+else
+    dominant_idx = 1;
+end
+
 dominant_freq = f(dominant_idx);
-dominant_period = 1 / dominant_freq;
+
+if dominant_freq > 0
+    dominant_period = 1 / dominant_freq;
+else
+    dominant_period = Inf;
+end
 
 fprintf('Dominant frequency: %.6f Hz\n', dominant_freq);
 fprintf('Dominant period   : %.6f s\n', dominant_period);
@@ -306,7 +316,7 @@ if show_figures
     ylabel('Amplitude');
     title('FFT Spectrum of Real Part of Velocity');
     grid on;
-    xlim([0, min(10*dominant_freq, Fs/2)]);
+    xlim([0, min(10*dominant_freq + eps, Fs/2)]);
 end
 
 %% Output summary

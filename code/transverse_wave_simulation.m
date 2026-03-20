@@ -47,7 +47,7 @@ u0 = 14*pi;         % rad
 
 % Model / numerical parameters
 gamma_damp = 0.5;   % damping coefficient in top-coil motion
-kappa = 1.0;        % shear correction factor
+kappa = 0.833;        % shear correction factor
 v0 = 1.2e-5;             % initial amplitude in v(theta,0)=v0*sin(theta)
 
 N_theta = 200;      % number of spatial grid points

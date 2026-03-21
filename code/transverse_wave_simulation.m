@@ -48,7 +48,6 @@ u0 = 14*pi;         % rad
 % Model / numerical parameters
 gamma_damp = 0.5;   % damping coefficient in top-coil motion
 kappa = 0.833;        % shear correction factor
-v0 = 1.2e-5;             % initial amplitude in v(theta,0)=v0*sin(theta)
 
 N_theta = 200;      % number of spatial grid points
 N_t = 400;          % initial number of time steps
@@ -103,7 +102,7 @@ v_t = zeros(N_theta, N_t);
 
 %% Initial condition for v(theta,t)
 for i = 1:N_theta
-    v(i,1) = v0 * sin(theta(i));
+    v(i,1) = 0;
 end
 v(:,2) = v(:,1);    % implements v_t(theta,0)=0 approximately
 

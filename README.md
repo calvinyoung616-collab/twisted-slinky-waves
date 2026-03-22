@@ -60,7 +60,7 @@ README.md
 
 The experiment uses a plastic slinky whose bottom end is fixed to a horizontal surface. The top of the slinky is twisted several turns and then released.
 
-The motion is recorded using a high-speed camera (WP-GUT130) at **300 fps**. A reflective marker is attached to the top coil to facilitate motion tracking.
+The motion is recorded using a high-speed camera (Metalab+ 300C-U3) at **300 fps**. A reflective marker is attached to the top coil to facilitate motion tracking.
 
 The recorded videos are analyzed using **Tracker (version 6.3.x)** to obtain time series data of the motion.
 

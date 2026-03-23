@@ -392,8 +392,6 @@ where
 
 The solution $\tilde{z}(t)$ obtained from this equation corresponds to the experimentally observed lateral motion of the coil center, that is, to the **transverse wave**.
 
-![Force analysis of a single coil center](../figures/center%20motion.jpg)
-
 ---
 
 ## 5. Summary of the modeling strategy
